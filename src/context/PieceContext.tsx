@@ -1,9 +1,9 @@
 "use client";
-import React, { createContext, useContext, useMemo, useState } from "react";
+import React, { createContext, useContext, useEffect, useMemo, useState } from "react";
 import { Piece } from "@/model/Piece";
-import { coordToIndex } from "@/helper/coord";
+import { coordToIndex, indexToCoord } from "@/helper/coord";
 import { initFromBOARDSTATE } from "@/helper/loadBoard";
-import { SOUNDS } from "@/config";
+import { SOUNDS, FILES } from "@/config";
 
 type Turn = "white" | "black";
 
@@ -17,7 +17,7 @@ interface PieceContextType {
   getPieceAt: (coord: Coord) => Piece | null;
   selectPiece: (id: string | null) => void;
   moveSelectedTo: (coord: Coord) => void;
-  playMoveSound: () => void
+  playMoveSound: () => void;
 }
 
 const PieceContext = createContext<PieceContextType | undefined>(undefined);
@@ -30,7 +30,6 @@ export const PieceProvider = ({ children }: { children: React.ReactNode }) => {
   const [turn, setTurn] = useState<Turn>("white");
   const [history, setHistory] = useState<string[]>([]);
   const [highlighted, setHighlighted] = useState<Coord[]>([]);
-  const [isLoaded, setIsLoaded] = useState(false);
 
   const getPieceAt = (coord: Coord) => {
     const id = board[coordToIndex(coord)];
@@ -79,7 +78,6 @@ export const PieceProvider = ({ children }: { children: React.ReactNode }) => {
     if (!mover || mover.color !== turn) return;
 
     if (!highlighted.includes(coord)) {
-      // clic sur une autre pièce alliée : re-sélection
       const ally = getPieceAt(coord);
       if (ally && ally.color === turn) {
         selectPiece(ally.id);
@@ -108,18 +106,62 @@ export const PieceProvider = ({ children }: { children: React.ReactNode }) => {
 
     newPieces[moved.id] = moved;
 
+    // petit / grand roque
+    if (moved.type === "king") {
+      const fromFile = mover.coord![0];
+      const toFile = coord[0];
+
+      const fromFileIndex = FILES.indexOf(fromFile);
+      const toFileIndex = FILES.indexOf(toFile);
+      const fileDiff = toFileIndex - fromFileIndex;
+
+      if (Math.abs(fileDiff) === 2) {
+        const row = Math.floor(fromIdx / 8);
+
+        if (fileDiff > 0) {
+          const rookFromIdx = row * 8 + 7;
+          const rookToIdx = row * 8 + 5;
+
+          const rookId = newBoard[rookFromIdx];
+          if (rookId) {
+            const rook = newPieces[rookId];
+            const rookMoved = Object.assign(Object.create(Object.getPrototypeOf(rook)), rook);
+            rookMoved.moveTo(indexToCoord(rookToIdx));
+            newPieces[rookId] = rookMoved;
+
+            newBoard[rookFromIdx] = undefined;
+            newBoard[rookToIdx] = rookId;
+          }
+        } else {
+          const rookFromIdx = row * 8 + 0;
+          const rookToIdx = row * 8 + 3;
+
+          const rookId = newBoard[rookFromIdx];
+          if (rookId) {
+            const rook = newPieces[rookId];
+            const rookMoved = Object.assign(Object.create(Object.getPrototypeOf(rook)), rook);
+            rookMoved.moveTo(indexToCoord(rookToIdx));
+            newPieces[rookId] = rookMoved;
+
+            newBoard[rookFromIdx] = undefined;
+            newBoard[rookToIdx] = rookId;
+          }
+        }
+      }
+    }
+
     setPieces(newPieces);
     setBoard(newBoard);
     setHistory((h) => [...h, `${moved.color} ${moved.type} ${mover.coord} -> ${coord}${target ? " x" : ""}`]);
     setSelectedId(null);
-    setHighlighted([]); // <-- clear surlignage
+    setHighlighted([]);
     setTurn(turn === "white" ? "black" : "white");
   };
 
   const playMoveSound = () => {
-    const moveSound = new Audio(SOUNDS.move)
-    moveSound.play()
-  }
+    const moveSound = new Audio(SOUNDS.move);
+    moveSound.play();
+  };
 
   // if (!isLoaded) return "Chargement..."
 
@@ -135,7 +177,7 @@ export const PieceProvider = ({ children }: { children: React.ReactNode }) => {
         getPieceAt,
         selectPiece,
         moveSelectedTo,
-        playMoveSound
+        playMoveSound,
       }}
     >
       {children}
@@ -144,7 +186,7 @@ export const PieceProvider = ({ children }: { children: React.ReactNode }) => {
 };
 
 export const usePieces = () => {
-  const ctx = useContext(PieceContext);
-  if (!ctx) throw new Error("usePieces must be used within PieceProvider");
-  return ctx;
+  const context = useContext(PieceContext);
+  if (!context) throw new Error("usePieces must be used within PieceProvider");
+  return context;
 };

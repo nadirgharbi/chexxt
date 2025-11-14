@@ -6,7 +6,14 @@ Voici toutes les versions du jeu pour informer des nouveaux changements et mise 
 ### 0.1
 - Page d'accueil
 - Plateau avec les pièces affichées
-- Logique de jeu implémentée
+- Logique de jeu implémentée (affichage des coups legaux)
+
+### 0.2
+- Son lors des mouvement ajouté
+- Coup du roque ajouté
+- Deplacement des pieces
+
+### 0.3
 
 ---
 

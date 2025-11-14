@@ -29,6 +29,8 @@ export class Rook extends Piece {
           moves.push(indexToCoord(index));
           break;
         }
+        moves.push(indexToCoord(index));
+        index += direction
       }
     }
 
