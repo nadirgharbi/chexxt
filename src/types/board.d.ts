@@ -1,0 +1,1 @@
+type BoardStateT = (string | undefined)[]
